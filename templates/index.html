@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tomato Disease Detection — AI Diagnosis</title>
+    <meta name="description" content="Upload a tomato leaf image and get an instant AI-powered disease diagnosis with remediation advice." />
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand:   { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
+                        surface: { 800: '#1e1e2e', 900: '#11111b', 950: '#0a0a14' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+                        'fade-up':   'fadeUp .5s ease-out forwards',
+                        'slide-in':  'slideIn .4s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeUp:  { '0%': { opacity: 0, transform: 'translateY(24px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
+                        slideIn: { '0%': { opacity: 0, transform: 'translateX(-20px)' }, '100%': { opacity: 1, transform: 'translateX(0)' } },
+                    },
+                },
+            },
+        };
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ── Custom scrollbar ─────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #11111b; }
+        ::-webkit-scrollbar-thumb { background: #22c55e33; border-radius: 99px; }
+
+        /* ── Glass morphism utility ───────────────────────── */
+        .glass {
+            background: rgba(30, 30, 46, 0.6);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* ── Drop-zone active state ──────────────────────── */
+        .drop-active {
+            border-color: #22c55e !important;
+            background: rgba(34, 197, 94, 0.08) !important;
+        }
+
+        /* ── Confidence bar fill ─────────────────────────── */
+        .conf-bar {
+            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* ── Severity badges ─────────────────────────────── */
+        .sev-none     { background: #16a34a22; color: #4ade80; }
+        .sev-medium   { background: #eab30822; color: #facc15; }
+        .sev-high     { background: #f9731622; color: #fb923c; }
+        .sev-critical { background: #ef444422; color: #f87171; }
+
+        /* ── Spinner ─────────────────────────────────────── */
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Hide default file input ─────────────────────── */
+        input[type="file"] { display: none; }
+    </style>
+</head>
+
+<body class="bg-surface-950 text-gray-200 font-sans min-h-screen flex flex-col">
+
+    <!-- ═══════════ Background ambience ═══════════ -->
+    <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -left-40 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-[140px] animate-pulse-slow"></div>
+        <div class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-emerald-700/10 rounded-full blur-[120px] animate-pulse-slow" style="animation-delay:1.5s"></div>
+    </div>
+
+    <!-- ═══════════ Header ═══════════ -->
+    <header class="w-full border-b border-white/5">
+        <div class="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🍅</span>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white">Tomato Disease Detection</h1>
+                    <p class="text-xs text-gray-500">Powered by MobileNetV2 &middot; DLT Mini Project</p>
+                </div>
+            </div>
+            <a href="https://github.com" target="_blank" class="text-xs text-gray-500 hover:text-brand-400 transition-colors">
+                ⭐ GitHub
+            </a>
+        </div>
+    </header>
+
+    <!-- ═══════════ Main ═══════════ -->
+    <main class="flex-1 flex items-start justify-center px-4 py-10">
+        <div class="w-full max-w-2xl space-y-6">
+
+            <!-- ── Upload card ── -->
+            <div class="glass rounded-2xl p-8 space-y-6 animate-fade-up">
+                <div class="text-center space-y-2">
+                    <h2 class="text-2xl font-bold text-white">Upload a Leaf Image</h2>
+                    <p class="text-sm text-gray-400">Drag & drop or click to select &middot; JPG / PNG</p>
+                </div>
+
+                <!-- Drop zone -->
+                <div id="dropZone"
+                     class="relative border-2 border-dashed border-white/10 rounded-xl p-10 text-center cursor-pointer
+                            hover:border-brand-500/40 hover:bg-brand-500/5 transition-all duration-300 group"
+                     onclick="document.getElementById('fileInput').click()">
+
+                    <!-- Placeholder icon -->
+                    <div id="placeholder" class="space-y-3">
+                        <svg class="mx-auto w-14 h-14 text-gray-600 group-hover:text-brand-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="text-sm text-gray-500">Drop your tomato leaf image here</p>
+                    </div>
+
+                    <!-- Preview (hidden initially) -->
+                    <img id="preview" class="hidden mx-auto max-h-64 rounded-lg shadow-xl shadow-black/30" alt="Preview" />
+                    <input id="fileInput" type="file" accept="image/*" />
+                </div>
+
+                <!-- File info -->
+                <p id="fileInfo" class="text-xs text-gray-500 text-center h-4"></p>
+
+                <!-- Predict button -->
+                <button id="predictBtn" disabled
+                        class="w-full py-3.5 rounded-xl font-semibold text-sm tracking-wide
+                               bg-brand-600 text-white shadow-lg shadow-brand-600/20
+                               hover:bg-brand-500 hover:shadow-brand-500/30
+                               disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-brand-600
+                               transition-all duration-300 flex items-center justify-center gap-2">
+                    <span id="btnText">🔬 Analyse Leaf</span>
+                    <div id="btnSpinner" class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <!-- ── Result card (hidden) ── -->
+            <div id="resultCard" class="hidden glass rounded-2xl p-8 space-y-5 animate-fade-up">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-white">Diagnosis</h3>
+                    <span id="sevBadge" class="text-xs font-semibold px-3 py-1 rounded-full"></span>
+                </div>
+
+                <!-- Disease name -->
+                <div class="space-y-1">
+                    <p class="text-3xl font-extrabold text-white" id="diseaseName">—</p>
+                    <p class="text-sm text-gray-400" id="className">—</p>
+                </div>
+
+                <!-- Confidence bar -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>Confidence</span>
+                        <span id="confPct">0%</span>
+                    </div>
+                    <div class="h-2.5 rounded-full bg-white/5 overflow-hidden">
+                        <div id="confBar" class="conf-bar h-full rounded-full bg-gradient-to-r from-brand-600 to-emerald-400" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <!-- Remedy -->
+                <div class="bg-white/[0.03] rounded-xl p-4 space-y-1">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">💊 Recommended Action</p>
+                    <p class="text-sm text-gray-300 leading-relaxed" id="remedy">—</p>
+                </div>
+
+                <!-- All predictions accordion -->
+                <details class="group">
+                    <summary class="cursor-pointer text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        All class probabilities
+                    </summary>
+                    <div id="allPreds" class="mt-3 space-y-2 text-xs"></div>
+                </details>
+
+                <!-- Try again -->
+                <button onclick="resetUI()"
+                        class="w-full py-2.5 rounded-xl text-sm font-medium border border-white/10
+                               hover:border-brand-500/40 hover:text-brand-400 transition-all duration-300">
+                    🔄 Try Another Image
+                </button>
+            </div>
+
+            <!-- ── Error card (hidden) ── -->
+            <div id="errorCard" class="hidden glass rounded-2xl p-6 border border-red-500/20 animate-fade-up">
+                <p class="text-red-400 text-sm" id="errorMsg"></p>
+            </div>
+        </div>
+    </main>
+
+    <!-- ═══════════ Footer ═══════════ -->
+    <footer class="text-center text-xs text-gray-600 py-6 border-t border-white/5">
+        DLT Mini Project &middot; Tomato Disease Detection &middot; MobileNetV2 Transfer Learning
+    </footer>
+
+    <!-- ═══════════ JS ═══════════ -->
+    <script>
+        // ── DOM refs ──────────────────────────────────────
+        const dropZone    = document.getElementById('dropZone');
+        const fileInput   = document.getElementById('fileInput');
+        const preview     = document.getElementById('preview');
+        const placeholder = document.getElementById('placeholder');
+        const fileInfo    = document.getElementById('fileInfo');
+        const predictBtn  = document.getElementById('predictBtn');
+        const btnText     = document.getElementById('btnText');
+        const btnSpinner  = document.getElementById('btnSpinner');
+        const resultCard  = document.getElementById('resultCard');
+        const errorCard   = document.getElementById('errorCard');
+
+        let selectedFile = null;
+
+        // ── Drag & drop ──────────────────────────────────
+        ['dragenter','dragover'].forEach(ev =>
+            dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('drop-active'); })
+        );
+        ['dragleave','drop'].forEach(ev =>
+            dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('drop-active'); })
+        );
+        dropZone.addEventListener('drop', e => {
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) handleFile(file);
+        });
+
+        // ── File input change ────────────────────────────
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) handleFile(fileInput.files[0]);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileInfo.textContent = `${file.name}  (${sizeMB} MB)`;
+            predictBtn.disabled = false;
+            resultCard.classList.add('hidden');
+            errorCard.classList.add('hidden');
+        }
+
+        // ── Prediction ───────────────────────────────────
+        predictBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // UI → loading state
+            predictBtn.disabled = true;
+            btnText.textContent = 'Analysing …';
+            btnSpinner.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+            errorCard.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const resp = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await resp.json();
+
+                if (!resp.ok) throw new Error(data.detail || 'Server error');
+
+                const pred = data.prediction;
+                showResult(pred);
+            } catch (err) {
+                document.getElementById('errorMsg').textContent = `⚠ ${err.message}`;
+                errorCard.classList.remove('hidden');
+            } finally {
+                btnText.textContent = '🔬 Analyse Leaf';
+                btnSpinner.classList.add('hidden');
+                predictBtn.disabled = false;
+            }
+        });
+
+        // ── Display result ───────────────────────────────
+        function showResult(pred) {
+            document.getElementById('diseaseName').textContent = pred.display_name;
+            document.getElementById('className').textContent    = `Class: ${pred.class_name}`;
+            document.getElementById('confPct').textContent      = pred.confidence_pct;
+            document.getElementById('remedy').textContent       = pred.remedy;
+
+            // Confidence bar (animate after a tick)
+            const bar = document.getElementById('confBar');
+            bar.style.width = '0%';
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    bar.style.width = `${(pred.confidence * 100).toFixed(1)}%`;
+                });
+            });
+
+            // Severity badge
+            const badge = document.getElementById('sevBadge');
+            const sev   = (pred.severity || 'Unknown').toLowerCase();
+            badge.textContent = pred.severity;
+            badge.className   = 'text-xs font-semibold px-3 py-1 rounded-full ' +
+                                (sev === 'none' ? 'sev-none' : sev === 'medium' ? 'sev-medium' :
+                                 sev === 'high' ? 'sev-high' : sev === 'critical' ? 'sev-critical' : 'sev-medium');
+
+            // All predictions
+            const allPreds = document.getElementById('allPreds');
+            allPreds.innerHTML = '';
+            for (const [cls, prob] of Object.entries(pred.all_predictions)) {
+                const pct = (prob * 100).toFixed(2);
+                allPreds.innerHTML += `
+                    <div class="flex items-center gap-3">
+                        <span class="w-52 truncate text-gray-400">${cls}</span>
+                        <div class="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div class="h-full rounded-full bg-brand-500/60" style="width:${pct}%"></div>
+                        </div>
+                        <span class="text-gray-500 w-16 text-right">${pct}%</span>
+                    </div>`;
+            }
+
+            resultCard.classList.remove('hidden');
+        }
+
+        // ── Reset ────────────────────────────────────────
+        function resetUI() {
+            selectedFile = null;
+            fileInput.value = '';
+            preview.src = '';
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            fileInfo.textContent = '';
+            predictBtn.disabled = true;
+            resultCard.classList.add('hidden');
+            errorCard.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

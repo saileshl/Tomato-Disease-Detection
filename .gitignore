@@ -1,0 +1,61 @@
+# ============================================================
+# Tomato Disease Detection — .gitignore
+# ============================================================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.manifest
+*.spec
+pip-log.txt
+
+# ---------- Virtual environments ----------
+venv/
+env/
+.env/
+.venv/
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+
+# ---------- IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- ML / Data ----------
+*.h5
+*.hdf5
+*.tflite
+*.pb
+saved_model/
+PlantVillage/
+dataset/
+data/
+Tomato_Disease_Dataset.zip
+tomato_model.h5
+archive.zip
+_tmp_*
+
+# ---------- Training artifacts ----------
+training_history.png
+confusion_matrix.png
+classification_report.txt
+
+# ---------- Vercel ----------
+.vercel/
+.output/
