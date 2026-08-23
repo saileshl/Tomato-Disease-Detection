@@ -165,16 +165,25 @@ class Hello:
             )
 
     def _load_tflite(self) -> None:
-        """Load model using tflite-runtime (Vercel-compatible)."""
-        try:
-            import tflite_runtime.interpreter as tflite
-        except ImportError:
-            # Fallback: use TF's built-in TFLite interpreter
-            import tensorflow as tf
-            tflite = tf.lite
+        """Load model using TFLite interpreter (Vercel-compatible)."""
+        # Try imports: ai-edge-litert (3.12+) > tflite-runtime (3.11-) > full TF
+        Interpreter = None
+        for loader in [
+            lambda: __import__("ai_edge_litert.interpreter", fromlist=["Interpreter"]).Interpreter,
+            lambda: __import__("tflite_runtime.interpreter", fromlist=["Interpreter"]).Interpreter,
+            lambda: __import__("tensorflow", fromlist=["lite"]).lite.Interpreter,
+        ]:
+            try:
+                Interpreter = loader()
+                break
+            except (ImportError, AttributeError):
+                continue
+
+        if Interpreter is None:
+            raise ImportError("No TFLite runtime found. Install ai-edge-litert or tflite-runtime.")
 
         print(f"Loading TFLite model from {TFLITE_PATH} ...")
-        self._interpreter = tflite.Interpreter(model_path=str(TFLITE_PATH))
+        self._interpreter = Interpreter(model_path=str(TFLITE_PATH))
         self._interpreter.allocate_tensors()
         self._use_tflite = True
         print("TFLite model loaded.")

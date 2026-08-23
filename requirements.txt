@@ -1,13 +1,11 @@
 # ============================================================
 #  Tomato Disease Detection -- Python Dependencies
 # ============================================================
-# For Vercel deployment: uses tflite-runtime (~5MB) instead of
-# full TensorFlow (~500MB) to stay within serverless limits.
-#
-# For local dev with full TF: pip install tensorflow
+# For Vercel: ai-edge-litert is the successor to tflite-runtime
+# and supports Python 3.12+
 # ============================================================
 
-tflite-runtime>=2.14.0
+ai-edge-litert>=1.0.1
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9
