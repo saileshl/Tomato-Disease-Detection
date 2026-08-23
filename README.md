@@ -1,119 +1,136 @@
-# 🍅 Tomato Disease Detection
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:059669,100:06b6d4&height=220&section=header&text=🍅%20LeafScan%20AI&fontSize=52&fontColor=ffffff&fontAlignY=38&desc=Tomato%20Disease%20Detection%20|%20Deep%20Learning&descSize=16&descAlignY=55&animation=fadeIn" width="100%" />
+</p>
 
-> **DLT Mini Project** — Deep Learning-based identification of 10 tomato leaf diseases using MobileNetV2 transfer learning, served via a FastAPI backend and a sleek web UI.
+<p align="center">
+  <a href="https://tomato-disease-detection-dlt.vercel.app"><img src="https://img.shields.io/badge/🌐_LIVE_DEMO-Visit_App-10b981?style=for-the-badge&labelColor=0c1017" /></a>
+  &nbsp;
+  <a href="https://colab.research.google.com/github/saileshl/Tomato-Disease-Detection/blob/master/Tomato_Disease_Detection.ipynb"><img src="https://img.shields.io/badge/📓_COLAB-Run_Notebook-F9AB00?style=for-the-badge&labelColor=0c1017" /></a>
+</p>
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-FF6F00?logo=tensorflow&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green)
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/TensorFlow-2.x-FF6F00?style=flat-square&logo=tensorflow&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-0.109+-009688?style=flat-square&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/MobileNetV2-Transfer_Learning-6366f1?style=flat-square" />
+  <img src="https://img.shields.io/badge/Deployed-Vercel-000?style=flat-square&logo=vercel&logoColor=white" />
+  <img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" />
+</p>
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Disease Classes](#disease-classes)
-- [Repository Structure](#repository-structure)
-- [Quick Start](#quick-start)
-  - [1 — Clone & Install](#1--clone--install)
-  - [2 — Download the Dataset](#2--download-the-dataset)
-  - [3 — Train the Model](#3--train-the-model)
-  - [4 — Run the Web App](#4--run-the-web-app)
-- [Google Colab Notebook](#google-colab-notebook)
-- [Deploy to Vercel](#deploy-to-vercel)
-- [API Reference](#api-reference)
-- [Results](#results)
-- [Tech Stack](#tech-stack)
-- [License](#license)
+<p align="center">
+  <em>Deep learning-powered identification of 10 tomato leaf diseases using MobileNetV2 transfer learning,<br/>served via a FastAPI backend with a premium glassmorphic web UI.</em>
+</p>
 
 ---
 
-## Overview
+## ⚡ Quick Links
 
-This project builds an end-to-end pipeline for **automated tomato disease detection** from leaf images:
-
-1. **Data** — The PlantVillage dataset (tomato subset, ~18 000 images, 10 classes).
-2. **Model** — MobileNetV2 backbone with custom classification head, trained in two phases (feature extraction → fine-tuning).
-3. **API** — FastAPI server exposing a `/predict` endpoint that returns the disease name, confidence score, severity level, and recommended treatment.
-4. **Frontend** — A modern single-page UI (Tailwind CSS) with drag-and-drop upload, animated results, and a full probability breakdown.
+| | |
+|:---:|:---:|
+| 🌐 **[Live Demo](https://tomato-disease-detection-dlt.vercel.app)** | 📓 **[Colab Notebook](https://colab.research.google.com/github/saileshl/Tomato-Disease-Detection/blob/master/Tomato_Disease_Detection.ipynb)** |
+| 📦 **[Releases](https://github.com/saileshl/Tomato-Disease-Detection/releases)** | 📋 **[API Docs](#-api-reference)** |
 
 ---
 
-## Architecture
+## 📌 Overview
+
+This project builds a **production-ready, end-to-end pipeline** for automated tomato disease detection from leaf images:
 
 ```
-                 ┌────────────────────┐
-                 │   Browser / UI     │
-                 │   (Tailwind CSS)   │
-                 └────────┬───────────┘
-                          │  HTTP POST /predict
-                          ▼
-                 ┌────────────────────┐
-                 │    FastAPI Server   │
-                 │    (main.py)        │
-                 │                    │
-                 │  ┌──────────────┐  │
-                 │  │  Hello class │  │  ← prediction engine
-                 │  │  • preprocess│  │
-                 │  │  • predict   │  │
-                 │  └──────┬───────┘  │
-                 │         │          │
-                 │  ┌──────▼───────┐  │
-                 │  │ tomato_model │  │
-                 │  │    .h5       │  │
-                 │  └──────────────┘  │
-                 └────────────────────┘
+📥 Data Collection → 🧠 Model Training → 🚀 API Server → 🖥 Web Interface → ☁️ Cloud Deploy
 ```
+
+| Component | Description |
+|:---|:---|
+| **Dataset** | PlantVillage (tomato subset) — ~18,000 images across 10 classes |
+| **Model** | MobileNetV2 backbone + custom classification head (Transfer Learning) |
+| **Training** | Two-phase: frozen feature extraction → fine-tuning last 30 layers |
+| **Backend** | FastAPI with the `Hello` prediction class (singleton pattern) |
+| **Frontend** | Premium dark UI with glassmorphism, animations & drag-drop upload |
+| **Deployment** | Vercel serverless (TFLite model, ~2.8 MB) |
 
 ---
 
-## Disease Classes
-
-| # | Class Name | Severity |
-|---|-----------|----------|
-| 0 | Bacterial Spot | Medium |
-| 1 | Early Blight | High |
-| 2 | Late Blight | Critical |
-| 3 | Leaf Mold | Medium |
-| 4 | Septoria Leaf Spot | Medium |
-| 5 | Spider Mites (Two-spotted) | Medium |
-| 6 | Target Spot | Medium |
-| 7 | Yellow Leaf Curl Virus | Critical |
-| 8 | Mosaic Virus | High |
-| 9 | Healthy ✅ | None |
-
----
-
-## Repository Structure
+## 🏗 Architecture
 
 ```
-DLT MINI PROJ/
-├── README.md                        ← You are here
-├── requirements.txt                 ← Python dependencies
-├── .gitignore                       ← Git exclusions
-├── vercel.json                      ← Vercel deployment config
-│
-├── data_downloader.py               ← Downloads & organises the dataset
-├── model.py                         ← CNN architecture (MobileNetV2)
-├── train.py                         ← Full training + evaluation pipeline
-├── main.py                          ← FastAPI backend (Hello class)
-│
-├── templates/
-│   └── index.html                   ← Frontend UI (Tailwind CSS)
-│
-├── Tomato_Disease_Detection.ipynb   ← Standalone Colab notebook
-│
-├── tomato_model.h5                  ← Trained model (generated)
-├── class_indices.json               ← Label mapping  (generated)
-├── training_history.png             ← Acc/Loss plots  (generated)
-├── confusion_matrix.png             ← Confusion matrix (generated)
-└── classification_report.txt        ← Precision/Recall/F1 (generated)
+┌──────────────────────────────────────────────────────┐
+│                    Browser / UI                       │
+│         Dark Glassmorphic Interface (Vanilla CSS)     │
+└─────────────────────┬────────────────────────────────┘
+                      │ POST /predict (multipart/form)
+                      ▼
+┌──────────────────────────────────────────────────────┐
+│                  FastAPI Server                       │
+│                                                      │
+│   ┌────────────────────────────────────┐             │
+│   │         Hello  (Singleton)         │             │
+│   │  ┌──────────┐  ┌───────────────┐  │             │
+│   │  │preprocess│→ │  TFLite / TF  │  │             │
+│   │  │ (PIL)    │  │  Inference    │  │             │
+│   │  └──────────┘  └───────┬───────┘  │             │
+│   │                        │          │             │
+│   │              ┌─────────▼────────┐ │             │
+│   │              │ tomato_model     │ │             │
+│   │              │ .tflite (2.8 MB) │ │             │
+│   │              └──────────────────┘ │             │
+│   └────────────────────────────────────┘             │
+└──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Quick Start
+## 🦠 Disease Classes
+
+| # | Disease | Severity | Samples |
+|:-:|:---|:---:|:---:|
+| 0 | Bacterial Spot | 🟡 Medium | 2,127 |
+| 1 | Early Blight | 🟠 High | 1,000 |
+| 2 | Late Blight | 🔴 Critical | 1,909 |
+| 3 | Leaf Mold | 🟡 Medium | 952 |
+| 4 | Septoria Leaf Spot | 🟡 Medium | 1,771 |
+| 5 | Spider Mites (Two-spotted) | 🟡 Medium | 1,676 |
+| 6 | Target Spot | 🟡 Medium | 1,404 |
+| 7 | Yellow Leaf Curl Virus | 🔴 Critical | 3,209 |
+| 8 | Mosaic Virus | 🟠 High | 373 |
+| 9 | Healthy ✅ | 🟢 None | 1,591 |
+
+---
+
+## 📁 Repository Structure
+
+```
+Tomato-Disease-Detection/
+│
+├── 📄 README.md                        ← Project documentation
+├── 📄 requirements.txt                 ← Python dependencies
+├── 📄 vercel.json                      ← Vercel serverless config
+├── 📄 .gitignore                       ← Git exclusions
+├── 📄 .vercelignore                    ← Vercel upload exclusions
+│
+├── 🧠 model.py                         ← CNN architecture (MobileNetV2)
+├── ⚙️ train.py                         ← Training + evaluation pipeline
+├── 🚀 main.py                          ← FastAPI backend (Hello class)
+├── 📥 data_downloader.py               ← Dataset acquisition script
+│
+├── 🖥 templates/
+│   └── index.html                      ← Premium web UI
+│
+├── 📓 Tomato_Disease_Detection.ipynb   ← Colab notebook (standalone)
+│
+├── 🤖 tomato_model.tflite              ← Optimised model (2.8 MB)
+├── 📋 class_indices.json               ← Label mapping
+│
+└── 📊 [Generated after training]
+    ├── tomato_model.h5                 ← Full Keras model
+    ├── training_history.png            ← Accuracy/Loss curves
+    ├── confusion_matrix.png            ← Confusion matrix
+    └── classification_report.txt       ← Precision/Recall/F1
+```
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -123,10 +140,9 @@ DLT MINI PROJ/
 ### 1 — Clone & Install
 
 ```bash
-git clone https://github.com/<your-username>/tomato-disease-detection.git
-cd tomato-disease-detection
+git clone https://github.com/saileshl/Tomato-Disease-Detection.git
+cd Tomato-Disease-Detection
 
-# Create a virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate        # Linux / macOS
 venv\Scripts\activate           # Windows
@@ -134,17 +150,13 @@ venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 ```
 
-> **GPU users**: Replace `tensorflow-cpu` with `tensorflow` in `requirements.txt` before installing.
-
 ### 2 — Download the Dataset
 
 ```bash
 python data_downloader.py
 ```
 
-The script tries multiple public mirrors (Google Drive, HTTP) — no API keys needed. If all automated methods fail, follow the on-screen instructions to download from [Kaggle](https://www.kaggle.com/datasets/arjuntejaswi/plant-village) and place the 10 `Tomato_*` folders into `PlantVillage/`.
-
-A backup archive `Tomato_Disease_Dataset.zip` is automatically created.
+> The script auto-downloads from multiple sources (Kaggle, HuggingFace, HTTP mirrors). If automated methods fail, follow the on-screen instructions to place the 10 `Tomato_*` folders into `PlantVillage/`.
 
 ### 3 — Train the Model
 
@@ -152,125 +164,146 @@ A backup archive `Tomato_Disease_Dataset.zip` is automatically created.
 python train.py
 ```
 
-This will:
+| Phase | Description | Epochs |
+|:---:|:---|:---:|
+| 1 | Feature extraction (frozen backbone) | 10 |
+| 2 | Fine-tuning (last 30 layers unfrozen) | 5 |
 
-1. Load & augment the dataset (80/20 train/val split)
-2. **Phase 1** — Train with frozen MobileNetV2 backbone (15 epochs)
-3. **Phase 2** — Fine-tune the last 30 layers (10 epochs)
-4. Save `tomato_model.h5`, training plots, confusion matrix, and classification report
-
-Training time: ~15 min on GPU, ~2 h on CPU.
+> ⏱ **Training time**: ~10 min on GPU (T4), ~30 min on CPU
 
 ### 4 — Run the Web App
 
 ```bash
 python main.py
-# or
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Open **http://localhost:8000** in your browser. Upload a leaf image → get an instant diagnosis.
+Open **http://localhost:8000** → upload a leaf image → instant diagnosis.
 
 ---
 
-## Google Colab Notebook
+## 📓 Google Colab Notebook
 
-The file `Tomato_Disease_Detection.ipynb` is a **fully self-contained** notebook that runs the entire pipeline in the cloud (no local setup needed):
+A **fully self-contained** notebook that runs the complete pipeline in the cloud:
 
-1. Downloads & zips the dataset
-2. Trains the MobileNetV2 model
-3. Outputs all evaluation metrics
-4. Auto-downloads `tomato_model.h5` to your machine
+<p align="center">
+  <a href="https://colab.research.google.com/github/saileshl/Tomato-Disease-Detection/blob/master/Tomato_Disease_Detection.ipynb">
+    <img src="https://img.shields.io/badge/Open_in-Google_Colab-F9AB00?style=for-the-badge&logo=google-colab&logoColor=white" />
+  </a>
+</p>
 
-**To use:**
-1. Upload `Tomato_Disease_Detection.ipynb` to [Google Colab](https://colab.research.google.com/)
+**Steps:**
+1. Open the link above
 2. Set runtime to **GPU** (`Runtime → Change runtime type → T4 GPU`)
-3. Click **Run All**
+3. Click **Run All** — the notebook handles everything
 
 ---
 
-## Deploy to Vercel
+## ☁️ Deployment
 
-This project includes a `vercel.json` for serverless deployment.
+The app is deployed on **Vercel** using a lightweight TFLite model (2.8 MB) instead of full TensorFlow (~500 MB).
+
+| Component | Detail |
+|:---|:---|
+| Runtime | Python 3.12 (Vercel serverless) |
+| Inference | `ai-edge-litert` (Google's TFLite successor) |
+| Model size | 2.8 MB (quantised TFLite) |
+| Cold start | ~3 seconds |
 
 ```bash
-# Install the Vercel CLI
+# Deploy yourself
 npm i -g vercel
-
-# Deploy (make sure tomato_model.h5 is present)
 vercel --prod
 ```
 
-> ⚠️ **Note**: Vercel serverless functions have a **50 MB** size limit. The model + TensorFlow runtime may exceed this. For production deployment, consider hosting the model on cloud storage and downloading it at cold-start, or use a dedicated server (Railway, Render, AWS Lambda with container images).
-
 ---
 
-## API Reference
+## 📡 API Reference
 
 ### `POST /predict`
 
-**Request**: `multipart/form-data` with a `file` field containing an image (JPEG/PNG).
+Upload a leaf image and receive a diagnosis.
 
-**Response** (JSON):
+**Request:**
+```bash
+curl -X POST https://tomato-disease-detection-dlt.vercel.app/predict \
+  -F "file=@leaf_image.jpg"
+```
+
+**Response:**
 ```json
 {
   "status": "success",
   "prediction": {
-    "class_name": "Early_blight",
+    "class_name": "Tomato_Early_blight",
     "display_name": "Early Blight",
     "confidence": 0.9734,
     "confidence_pct": "97.34%",
     "severity": "High",
     "remedy": "Apply chlorothalonil or mancozeb fungicide. Practice crop rotation.",
-    "all_predictions": {
-      "Early_blight": 0.9734,
-      "Late_blight": 0.0121,
-      "...": "..."
-    }
+    "all_predictions": { "...": "..." }
   }
 }
 ```
 
 ### `GET /health`
 
-Returns `{"status": "ok", "model_loaded": true}`.
+```json
+{ "status": "ok", "model_loaded": true }
+```
 
 ---
 
-## Results
-
-After training, you can expect:
+## 📊 Results
 
 | Metric | Value |
-|--------|-------|
-| Validation Accuracy | ~95-97% |
-| Macro F1-Score | ~0.95 |
-| Best Class | healthy (~99%) |
-| Hardest Class | Septoria vs Early Blight overlap |
+|:---|:---:|
+| Validation Accuracy | **~80%** |
+| Macro Precision | 0.81 |
+| Macro Recall | 0.77 |
+| Macro F1-Score | 0.74 |
+| Best Class | YellowLeaf Curl Virus (~97%) |
+| Model Size (TFLite) | 2.8 MB |
 
-Training curves and the confusion matrix are saved as `training_history.png` and `confusion_matrix.png`.
+> 💡 Higher accuracy (~92%+) achievable with more training epochs and GPU-based training via the Colab notebook.
 
 ---
 
-## Tech Stack
+## 🛠 Tech Stack
+
+<p align="center">
+  <img src="https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white" />
+  <img src="https://img.shields.io/badge/Keras-D00000?style=for-the-badge&logo=keras&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white" />
+  <img src="https://img.shields.io/badge/Pillow-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vercel-000?style=for-the-badge&logo=vercel&logoColor=white" />
+  <img src="https://img.shields.io/badge/Google_Colab-F9AB00?style=for-the-badge&logo=google-colab&logoColor=white" />
+</p>
 
 | Layer | Technology |
-|-------|-----------|
-| Deep Learning | TensorFlow / Keras, MobileNetV2 |
-| Backend | FastAPI, Uvicorn |
-| Frontend | HTML5, Tailwind CSS, Vanilla JS |
-| Data Science | scikit-learn, matplotlib, NumPy, Pillow |
-| Deployment | Vercel (serverless) |
-| Notebook | Google Colab |
+|:---|:---|
+| **Deep Learning** | TensorFlow / Keras, MobileNetV2 (Transfer Learning) |
+| **Inference** | TFLite (`ai-edge-litert`) for serverless, full TF for local |
+| **Backend** | FastAPI, Uvicorn |
+| **Frontend** | HTML5, Vanilla CSS (glassmorphism), JavaScript |
+| **Data Science** | scikit-learn, matplotlib, NumPy, Pillow |
+| **Deployment** | Vercel (serverless Python) |
+| **Notebook** | Google Colab (GPU runtime) |
 
 ---
 
-## License
+## 📜 License
 
 This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  Made with 🍅 and ☕ for the DLT Mini Project
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:059669,100:06b6d4&height=120&section=footer" width="100%" />
+</p>
+
+<p align="center">
+  <strong>Built with 🍅 and ☕ for the DLT Mini Project</strong><br/>
+  <sub>Deep Learning Techniques — Tomato Disease Detection</sub>
 </p>
