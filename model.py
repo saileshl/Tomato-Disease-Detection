@@ -100,8 +100,16 @@ def unfreeze_and_finetune(
     Unfreeze the last *n* layers of the MobileNetV2 backbone and
     recompile with a lower learning rate for fine-tuning.
     """
-    # The MobileNetV2 base is the first layer in the Sequential stack
-    base = model.layers[1]  # layer[0] = InputLayer
+    # Find the MobileNetV2 base dynamically (it's a Functional model inside Sequential)
+    base = None
+    for layer in model.layers:
+        if hasattr(layer, "layers") and len(getattr(layer, "layers", [])) > 10:
+            base = layer
+            break
+
+    if base is None:
+        raise RuntimeError("Could not find MobileNetV2 base in model.layers")
+
     base.trainable = True
     for layer in base.layers[: -num_layers_to_unfreeze]:
         layer.trainable = False
