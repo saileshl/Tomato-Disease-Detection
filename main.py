@@ -1,11 +1,15 @@
 """
-main.py — FastAPI Backend for Tomato Disease Detection
+main.py -- FastAPI Backend for Tomato Disease Detection
 ======================================================
 Exposes:
-    GET  /          → serves the frontend UI
-    POST /predict   → accepts an image upload, returns disease + confidence
+    GET  /          -> serves the frontend UI
+    POST /predict   -> accepts an image upload, returns disease + confidence
 
 The main prediction class is named **Hello** per project spec.
+
+Supports two inference backends:
+    1. TFLite (tflite-runtime) -- used on Vercel / lightweight deploy
+    2. Full TensorFlow (keras) -- used locally when tomato_model.h5 exists
 """
 
 from __future__ import annotations
@@ -18,10 +22,12 @@ from pathlib import Path
 from typing import Optional
 
 # Force UTF-8 output on Windows to avoid cp1252 emoji crashes
-if sys.stdout.encoding != "utf-8":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
+if sys.stdout and hasattr(sys.stdout, "encoding") and sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import numpy as np
 from PIL import Image
@@ -31,15 +37,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Suppress noisy TF logs before import
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-import tensorflow as tf  # noqa: E402
 
-# ── Paths ────────────────────────────────────────────────────
+# -- Paths --
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "tomato_model.h5"
+TFLITE_PATH = BASE_DIR / "tomato_model.tflite"
+H5_PATH = BASE_DIR / "tomato_model.h5"
 CLASS_MAP_PATH = BASE_DIR / "class_indices.json"
 TEMPLATE_PATH = BASE_DIR / "templates" / "index.html"
 
-# ── Default class names (used if class_indices.json not found) ─
+# -- Default class names (must match sorted folder names from training) --
 DEFAULT_CLASS_NAMES: dict[int, str] = {
     0: "Tomato_Bacterial_spot",
     1: "Tomato_Early_blight",
@@ -108,45 +114,38 @@ DISEASE_INFO: dict[str, dict] = {
 }
 
 
-# ═══════════════════════════════════════════════════════════
-#  Hello — Main Prediction Class
-# ═══════════════════════════════════════════════════════════
+# ===================================================================
+#  Hello -- Main Prediction Class (supports TFLite + full TF)
+# ===================================================================
 class Hello:
     """
     Central inference engine for Tomato Disease Detection.
 
     Responsibilities
     ----------------
-    • Load the trained Keras model once (singleton pattern).
-    • Pre-process uploaded images to model-ready tensors.
-    • Run inference and return top prediction + confidence.
+    - Load the trained model once (singleton pattern).
+    - Pre-process uploaded images to model-ready tensors.
+    - Run inference and return top prediction + confidence.
     """
 
     IMG_SIZE: int = 224
     _instance: Optional["Hello"] = None
-    _model: Optional[tf.keras.Model] = None
+    _interpreter = None       # TFLite interpreter
+    _keras_model = None       # Full Keras model (local only)
     _class_names: dict[int, str] = {}
+    _use_tflite: bool = False
 
     def __new__(cls) -> "Hello":
-        """Singleton — ensures the model is loaded only once."""
+        """Singleton -- ensures the model is loaded only once."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._load()
         return cls._instance
 
-    # ── Internal loader ──────────────────────────────────────
+    # -- Internal loader --
     def _load(self) -> None:
         """Load model weights and class-index mapping."""
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(
-                f"Model not found at {MODEL_PATH}. "
-                "Train the model first with `python train.py`."
-            )
-        print(f"🔄  Loading model from {MODEL_PATH} …")
-        self._model = tf.keras.models.load_model(str(MODEL_PATH))
-        print("✅  Model loaded successfully.")
-
-        # Load class indices if available
+        # Load class indices
         if CLASS_MAP_PATH.exists():
             with open(CLASS_MAP_PATH) as f:
                 raw = json.load(f)
@@ -154,19 +153,53 @@ class Hello:
         else:
             self._class_names = DEFAULT_CLASS_NAMES.copy()
 
-    # ── Image preprocessing ──────────────────────────────────
+        # Prefer TFLite (lightweight) over full TF
+        if TFLITE_PATH.exists():
+            self._load_tflite()
+        elif H5_PATH.exists():
+            self._load_keras()
+        else:
+            raise FileNotFoundError(
+                f"No model found. Expected {TFLITE_PATH} or {H5_PATH}. "
+                "Train the model first with `python train.py`."
+            )
+
+    def _load_tflite(self) -> None:
+        """Load model using tflite-runtime (Vercel-compatible)."""
+        try:
+            import tflite_runtime.interpreter as tflite
+        except ImportError:
+            # Fallback: use TF's built-in TFLite interpreter
+            import tensorflow as tf
+            tflite = tf.lite
+
+        print(f"Loading TFLite model from {TFLITE_PATH} ...")
+        self._interpreter = tflite.Interpreter(model_path=str(TFLITE_PATH))
+        self._interpreter.allocate_tensors()
+        self._use_tflite = True
+        print("TFLite model loaded.")
+
+    def _load_keras(self) -> None:
+        """Load full Keras model (for local development)."""
+        import tensorflow as tf
+        print(f"Loading Keras model from {H5_PATH} ...")
+        self._keras_model = tf.keras.models.load_model(str(H5_PATH))
+        self._use_tflite = False
+        print("Keras model loaded.")
+
+    # -- Image preprocessing --
     def preprocess(self, image_bytes: bytes) -> np.ndarray:
         """
-        Convert raw upload bytes → model-ready float32 tensor.
+        Convert raw upload bytes -> model-ready float32 tensor.
 
-        Steps: decode → RGB → resize → normalize → add batch dim.
+        Steps: decode -> RGB -> resize -> normalize -> add batch dim.
         """
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = img.resize((self.IMG_SIZE, self.IMG_SIZE), Image.LANCZOS)
         arr = np.array(img, dtype=np.float32) / 255.0
         return np.expand_dims(arr, axis=0)  # (1, 224, 224, 3)
 
-    # ── Prediction ───────────────────────────────────────────
+    # -- Prediction --
     def predict(self, image_bytes: bytes) -> dict:
         """
         Run inference on raw image bytes.
@@ -178,7 +211,11 @@ class Hello:
             remedy, all_predictions
         """
         tensor = self.preprocess(image_bytes)
-        probabilities = self._model.predict(tensor, verbose=0)[0]
+
+        if self._use_tflite:
+            probabilities = self._predict_tflite(tensor)
+        else:
+            probabilities = self._keras_model.predict(tensor, verbose=0)[0]
 
         top_idx = int(np.argmax(probabilities))
         confidence = float(probabilities[top_idx])
@@ -208,17 +245,25 @@ class Hello:
             ),
         }
 
+    def _predict_tflite(self, tensor: np.ndarray) -> np.ndarray:
+        """Run inference using TFLite interpreter."""
+        input_details = self._interpreter.get_input_details()
+        output_details = self._interpreter.get_output_details()
+        self._interpreter.set_tensor(input_details[0]["index"], tensor)
+        self._interpreter.invoke()
+        return self._interpreter.get_tensor(output_details[0]["index"])[0]
 
-# ═══════════════════════════════════════════════════════════
+
+# ===================================================================
 #  FastAPI Application
-# ═══════════════════════════════════════════════════════════
+# ===================================================================
 app = FastAPI(
     title="Tomato Disease Detection API",
     description="Upload a tomato leaf image and get an instant disease diagnosis.",
     version="1.0.0",
 )
 
-# CORS — allow the frontend (any origin during dev)
+# CORS -- allow the frontend (any origin during dev)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -228,7 +273,7 @@ app.add_middleware(
 )
 
 
-# ── Lazy-load the predictor on first request ────────────────
+# -- Lazy-load the predictor on first request --
 _predictor: Optional[Hello] = None
 
 
@@ -239,7 +284,7 @@ def _get_predictor() -> Hello:
     return _predictor
 
 
-# ── Routes ──────────────────────────────────────────────────
+# -- Routes --
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     """Serve the single-page frontend."""
@@ -295,11 +340,11 @@ async def health_check():
     return {"status": "ok", "model_loaded": _predictor is not None}
 
 
-# ═══════════════════════════════════════════════════════════
+# ===================================================================
 #  Local dev server
-# ═══════════════════════════════════════════════════════════
+# ===================================================================
 if __name__ == "__main__":
     import uvicorn
 
-    print("🍅 Starting Tomato Disease Detection API …")
+    print("Starting Tomato Disease Detection API ...")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
