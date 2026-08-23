@@ -100,10 +100,12 @@ def unfreeze_and_finetune(
     Unfreeze the last *n* layers of the MobileNetV2 backbone and
     recompile with a lower learning rate for fine-tuning.
     """
-    # Find the MobileNetV2 base dynamically (it's a Functional model inside Sequential)
+    # Find the MobileNetV2 base — it's a tf.keras.Model (Functional) nested
+    # inside the Sequential. We use isinstance instead of hasattr because
+    # Keras layers have custom __getattr__ that breaks hasattr checks.
     base = None
     for layer in model.layers:
-        if hasattr(layer, "layers") and len(getattr(layer, "layers", [])) > 10:
+        if isinstance(layer, tf.keras.Model):
             base = layer
             break
 
